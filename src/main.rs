@@ -8,10 +8,9 @@ use std::collections::LinkedList;
 use std::fs;
 use std::path::PathBuf;
 
-
 use zarrs::node::{Node, NodeMetadata};
 use std::env;
-use clap::{Parser};
+use clap::Parser;
 
 use zarrs::storage::store::FilesystemStore;
 
