@@ -10,3 +10,4 @@ zarrs = {path="../zarrs/"}
 inquire = "0.6.2"
 serde_json = "1.0"
 indexmap = "2.2.3"
+clap = {version = "4.5.1", features = ["derive"]}

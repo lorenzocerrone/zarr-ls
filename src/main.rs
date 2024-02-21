@@ -1,20 +1,17 @@
 use indexmap::IndexMap;
 use inquire::Select;
 use zarrs::array::ArrayMetadata;
-use zarrs::array::ArrayMetadataV3;
-use zarrs::group::GroupMetadata;
-use zarrs::group::GroupMetadataV3;
-use zarrs::metadata;
-use zarrs::node::NodeName;
-use zarrs::serde_json::to_string;
 
-use serde_json;
+use zarrs::group::GroupMetadata;
+
 use std::collections::LinkedList;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use zarrs::node::{Node, NodeMetadata};
+use std::env;
+use clap::Parser;
 
 use zarrs::storage::store::FilesystemStore;
 
@@ -24,13 +21,18 @@ static ZARR_EXTENSION: &str = "zarr";
 static EXIT: &str = "Exit!";
 static BACK: &str = "..";
 
+#[derive(Parser)]
+struct Cli {
+    path: Option<std::path::PathBuf>
+}
+
 
 #[derive(Debug, Clone)]
 enum CurrentSelection {
     Directory(PathBuf),
     ZarrFile(Node),
     Exit,
-    Back,
+    Back(Option<PathBuf>),
 }
 
 fn read_dir(path: PathBuf) -> Vec<PathBuf> {
@@ -71,14 +73,13 @@ fn find_files_options(path: PathBuf) -> IndexMap<String, CurrentSelection> {
         };
         matching_name.insert(path_name, current_selection);
     }
-
-    // Special options
-    //let parent_path = path.parent().unwrap().to_path_buf();
-    //matching_name.insert(
-    //    "..".to_string(),
-    //    CurrentSelection::Directory(parent_path.clone()),
-    //);
-    matching_name.insert(BACK.to_string(), CurrentSelection::Back);
+    
+    let parent_path = match path.parent(){
+        Some(path) => Some(path.to_path_buf()),
+        None => None
+    };
+    
+    matching_name.insert(BACK.to_string(), CurrentSelection::Back(parent_path));
     matching_name.insert(EXIT.to_string(), CurrentSelection::Exit);
     matching_name
 }
@@ -95,10 +96,7 @@ fn format_array_infos(node: &Node, verbose: bool) -> String {
             let dtype = array_metadata.data_type.name();
 
             let more_info = if verbose {
-                format!(
-                    "\n{}",
-                    serde_json::to_string_pretty(&array_metadata).unwrap()
-                )
+                format!("\n{}", serde_json::to_string_pretty(&array_metadata).unwrap())
             } else {
                 "".to_string()
             };
@@ -123,7 +121,7 @@ fn format_group_infos(node: &Node) -> String {
     };
 
     let infos: String = match metadata {
-        GroupMetadata::V3(group_metadata) => {
+        GroupMetadata::V3(_group_metadata) => {
             let num_children = node.children().len();
             let mut child_infos: String = "".to_string();
 
@@ -162,7 +160,7 @@ fn find_zarr_options(node: Node) -> IndexMap<String, CurrentSelection> {
         matching_name.insert(child_name, current_selection);
     }
 
-    matching_name.insert(BACK.to_string(), CurrentSelection::Back);
+    matching_name.insert(BACK.to_string(), CurrentSelection::Back(None));
     matching_name.insert(EXIT.to_string(), CurrentSelection::Exit);
 
     matching_name
@@ -173,7 +171,7 @@ fn build_menu(current_path: CurrentSelection) -> CurrentSelection {
         CurrentSelection::Directory(dir_path) => find_files_options(dir_path),
         CurrentSelection::ZarrFile(zarr_path) => find_zarr_options(zarr_path),
         CurrentSelection::Exit => panic!("Exit should not be a valid option"),
-        CurrentSelection::Back => panic!("Back should not be a valid option"),
+        CurrentSelection::Back(_) => panic!("Back should not be a valid option"),
     };
 
     let options: Vec<String> = matching_selections.keys().cloned().collect();
@@ -186,7 +184,13 @@ fn build_menu(current_path: CurrentSelection) -> CurrentSelection {
 }
 
 fn main() {
-    let path: PathBuf = PathBuf::from("/home/lcerrone/").canonicalize().unwrap();
+    // Prints each argument on a separate line
+    let args: Cli = Cli::parse();
+    let path = match args.path {
+        Some(path) => path,
+        None => env::current_dir().unwrap(),
+    };
+
     let mut selections: LinkedList<CurrentSelection> = LinkedList::new();
     selections.push_back(CurrentSelection::Directory(path.clone()));
 
@@ -198,13 +202,21 @@ fn main() {
             None => panic!("No selection found"),
         };
 
+
         let next_selection = build_menu(current_selection.clone());
 
         match next_selection {
             CurrentSelection::Exit => break,
-            CurrentSelection::Back => {
-                if selections.len() > 1 {
-                    selections.pop_back();
+            CurrentSelection::Back(previous_path) => {
+                match previous_path {
+                    Some(path) => {
+                        selections.push_back(CurrentSelection::Directory(path));
+                    }
+                    None => {
+                        if selections.len() > 1 {
+                            selections.pop_back();
+                        }
+                    }
                 }
             }
             _ => {
