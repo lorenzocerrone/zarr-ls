@@ -511,6 +511,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rayon_iter_concurrent_limit"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d269e5480e8c9076d865d8c6a711974dbc38858ab294268dcfd18557494cd20b"
+dependencies = [
+ "rayon",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -810,9 +819,7 @@ checksum = "ed94fce61571a4006852b7389a063ab983c02eb1bb37b47f8272ce92d06d9538"
 
 [[package]]
 name = "zarrs"
-version = "0.11.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0452738f6f31895e29f7eb1af7674c7a4eeeb3e51bf5b52d5a1a9214346878f"
+version = "0.12.0"
 dependencies = [
  "blosc-src",
  "bytemuck",
@@ -829,6 +836,7 @@ dependencies = [
  "parking_lot",
  "pathdiff",
  "rayon",
+ "rayon_iter_concurrent_limit",
  "rustversion",
  "serde",
  "serde_json",
@@ -842,8 +850,6 @@ name = "zarrs-ls"
 version = "0.1.0"
 dependencies = [
  "inquire",
- "serde_json",
- "walkdir",
  "zarrs",
 ]
 

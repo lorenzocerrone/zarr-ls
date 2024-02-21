@@ -4,29 +4,17 @@ use std::fmt::Error;
 use std::fs::read_dir;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use zarrs::metadata;
+use zarrs::node::Node;
 use zarrs::node::NodePath;
 use zarrs::storage::store::{self, FilesystemStore};
 use zarrs::storage::{get_child_nodes, meta_key};
 
-enum PathResult {
-    ZarrFile(PathBuf),
+#[derive(Debug, Clone)]
+enum CurrentSelection {
     Directory(PathBuf),
+    ZarrFile(Node),
     Exit,
-    Error(Error),
-}
-
-fn WalkZarr(path: PathBuf) {
-    let store = Arc::new(FilesystemStore::new(path).unwrap());
-    // Show the hierarchy
-    // let node = Node::new(&*store, "/").unwrap();
-    // let tree = node.hierarchy_tree();
-    //println!("hierarchy_tree:\n{}", tree);
-
-    let node_path: NodePath = "/".try_into().unwrap();
-    let children = get_child_nodes(&*store, &node_path).unwrap();
-    for child in children {
-        println!("child_metadata: {:?}", child);
-    }
 }
 
 fn find_files(path: PathBuf) -> Vec<PathBuf> {
@@ -50,64 +38,67 @@ fn find_files(path: PathBuf) -> Vec<PathBuf> {
         .collect::<Vec<PathBuf>>()
 }
 
-fn find_zarr_elements() {
-    todo!();
-}
-
-fn select_file(dir_path: &Path) -> PathResult {
-    let paths: Vec<PathBuf> = find_files(dir_path.to_path_buf());
-
-    let mut matching_name: HashMap<String, PathBuf> = HashMap::new();
-    let mut options: Vec<String> = Vec::new();
+fn find_files_options(path: PathBuf) -> HashMap<String, CurrentSelection> {
+    let paths: Vec<PathBuf> = find_files(path.clone());
+    let mut matching_name: HashMap<String, CurrentSelection> = HashMap::new();
 
     for path in paths {
         let path_name = path.file_name().unwrap().to_str().unwrap().to_string();
-        options.push(path_name.clone());
-        matching_name.insert(path_name, path);
+        let current_selection = if path.ends_with(".zarr") {
+            CurrentSelection::Directory(path)
+        } else {
+            let store = Arc::new(FilesystemStore::new(path).unwrap());
+            let node = Node::new(&*store, "/").unwrap();
+            CurrentSelection::ZarrFile(node)
+        };
+        matching_name.insert(path_name, current_selection);
     }
 
-    // Add the option to go back to the parent directory
-    options.push("Go back!".to_string());
-    let parent_path = dir_path.parent().unwrap().to_path_buf();
-    matching_name.insert("Go back!".to_string(), parent_path);
+    // Special options
+    let parent_path = path.parent().unwrap().to_path_buf();
+    matching_name.insert(
+        "..".to_string(),
+        CurrentSelection::Directory(parent_path.clone()),
+    );
+    matching_name.insert("Exit!".to_string(), CurrentSelection::Exit);
+    return matching_name;
+}
 
-    // Add the option to exit the program
-    options.push("Exit!".to_string());
-    matching_name.insert("Exit!".to_string(), PathBuf::new());
-
-    let ans = Select::new("Select a Directory or a Zarr file", options).prompt();
-    let ans_name = ans.unwrap();
-    let ans_path: PathBuf = matching_name.get(&ans_name).unwrap().clone();
-
-    if ans_path.is_dir() && ans_name.ends_with(".zarr") {
-        return PathResult::ZarrFile(ans_path);
-    } else if ans_path.is_dir() {
-        return PathResult::Directory(ans_path);
-    } else if ans_name == "Exit!" {
-        return PathResult::Exit;
+fn find_zarr_options(node: Node) -> HashMap<String, CurrentSelection> {
+    let mut matching_name: HashMap<String, CurrentSelection> = HashMap::new();
+    for child in node.children() {
+        let child_name = child.name().to_string();
+        let current_selection = CurrentSelection::ZarrFile(child.clone());
+        matching_name.insert(child_name, current_selection);
     }
+    matching_name.insert("Exit!".to_string(), CurrentSelection::Exit);
+    return matching_name;
+}
 
-    PathResult::Error(Error)
+fn build_menu(current_path: CurrentSelection) -> CurrentSelection {
+    let matching_selections: HashMap<String, CurrentSelection> = match current_path {
+        CurrentSelection::Directory(dir_path) => find_files_options(dir_path),
+        CurrentSelection::ZarrFile(zarr_path) => find_zarr_options(zarr_path),
+        CurrentSelection::Exit => panic!("Exit should not be a valid option"),
+    };
+
+    let options: Vec<String> = matching_selections.keys().cloned().collect();
+    let selection = Select::new("Select a file or zarr group", options).prompt();
+    let selected_option_name = selection.unwrap();
+    matching_selections
+        .get(&selected_option_name)
+        .unwrap()
+        .clone()
 }
 
 fn main() {
     let mut path: PathBuf = PathBuf::from("/home/lcerrone/").canonicalize().unwrap();
+    let mut current_selection: CurrentSelection = CurrentSelection::Directory(path);
     loop {
-        let ans: PathResult = select_file(&path);
-        match ans {
-            PathResult::Directory(new_path) => {
-                path = new_path;
-            }
-            PathResult::ZarrFile(zarr_path) => {
-                println!("Zarr file selected: {:?}", zarr_path);
-                WalkZarr(zarr_path);
-            }
-            PathResult::Exit => {
-                println!("Exiting...");
-                break;
-            }
-            PathResult::Error(err) => {
-                println!("Error: {:?}", err);
+        match current_selection {
+            CurrentSelection::Exit => break,
+            _ => {
+                current_selection = build_menu(current_selection);
             }
         }
     }
