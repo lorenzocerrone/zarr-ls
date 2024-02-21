@@ -849,7 +849,9 @@ dependencies = [
 name = "zarrs-ls"
 version = "0.1.0"
 dependencies = [
+ "indexmap",
  "inquire",
+ "serde_json",
  "zarrs",
 ]
 

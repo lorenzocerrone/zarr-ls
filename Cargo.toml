@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 zarrs = {path="../zarrs/"}
 inquire = "0.6.2"
+serde_json = "1.0"
+indexmap = "2.2.3"
