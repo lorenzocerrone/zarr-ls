@@ -74,10 +74,7 @@ fn find_files_options(path: PathBuf) -> IndexMap<String, CurrentSelection> {
         matching_name.insert(path_name, current_selection);
     }
     
-    let parent_path = match path.parent(){
-        Some(path) => Some(path.to_path_buf()),
-        None => None
-    };
+    let parent_path = path.parent().map(|path| path.to_path_buf());
     
     matching_name.insert(BACK.to_string(), CurrentSelection::Back(parent_path));
     matching_name.insert(EXIT.to_string(), CurrentSelection::Exit);
