@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use zarrs::node::{Node, NodeMetadata};
 use std::env;
-use clap::Parser;
+use clap::{Error, Parser};
 
 use zarrs::storage::store::FilesystemStore;
 
@@ -54,31 +54,50 @@ fn read_dir(path: PathBuf) -> Vec<PathBuf> {
         .collect::<Vec<PathBuf>>()
 }
 
+fn path_to_selection(path: PathBuf) -> CurrentSelection {
+    let path_extension = match path.extension() {
+        Some(ext) => ext.to_str().unwrap(),
+        None => "",
+    };
+
+    if path_extension == ZARR_EXTENSION {
+        let node = zarr_node_from_path(path.clone());
+        return CurrentSelection::ZarrFile(node);
+
+    }
+
+    if path.is_dir() {
+        return CurrentSelection::Directory(path);
+
+    }
+
+    panic!("Invalid path: {:?}. It should be either a directory or a zarr file", path);
+    
+}
+
 fn find_files_options(path: PathBuf) -> IndexMap<String, CurrentSelection> {
     let paths: Vec<PathBuf> = read_dir(path.clone());
     let mut matching_name: IndexMap<String, CurrentSelection> = IndexMap::new();
 
     for path in paths {
         let path_name = path.file_name().unwrap().to_str().unwrap().to_string();
-        let path_extension = match path.extension() {
-            Some(ext) => ext.to_str().unwrap(),
-            None => "",
-        };
-        let current_selection = if path_extension == ZARR_EXTENSION {
-            let store = Arc::new(FilesystemStore::new(path).unwrap());
-            let node = Node::new(&*store, "/").unwrap();
-            CurrentSelection::ZarrFile(node)
-        } else {
-            CurrentSelection::Directory(path)
-        };
+        let current_selection = path_to_selection(path.clone());
         matching_name.insert(path_name, current_selection);
     }
     
-    let parent_path = path.parent().map(|path| path.to_path_buf());
+    let parent_path = match path.parent(){
+        Some(path) => Some(path.to_path_buf()),
+        None => None
+    };
     
     matching_name.insert(BACK.to_string(), CurrentSelection::Back(parent_path));
     matching_name.insert(EXIT.to_string(), CurrentSelection::Exit);
     matching_name
+}
+
+fn zarr_node_from_path(path: PathBuf) -> Node {
+    let store = FilesystemStore::new(path).unwrap();
+    Node::new(&store, "/").unwrap()
 }
 
 fn format_array_infos(node: &Node, verbose: bool) -> String {
@@ -172,7 +191,7 @@ fn build_menu(current_path: CurrentSelection) -> CurrentSelection {
     };
 
     let options: Vec<String> = matching_selections.keys().cloned().collect();
-    let selection = Select::new("Select a file or zarr group", options).prompt();
+    let selection = Select::new("Select a directory or zarr file", options).prompt();
     let selected_option_name = selection.unwrap();
     matching_selections
         .get(&selected_option_name)
@@ -189,30 +208,33 @@ fn main() {
     };
 
     let mut selections: LinkedList<CurrentSelection> = LinkedList::new();
-    selections.push_back(CurrentSelection::Directory(path.clone()));
+
+    let current_selection = path_to_selection(path.clone());
+    selections.push_back(current_selection);
 
     loop {
         let current_selection = selections.back();
-
         let current_selection = match current_selection {
             Some(selection) => selection,
             None => panic!("No selection found"),
         };
-
 
         let next_selection = build_menu(current_selection.clone());
 
         match next_selection {
             CurrentSelection::Exit => break,
             CurrentSelection::Back(previous_path) => {
+
                 match previous_path {
                     Some(path) => {
                         selections.push_back(CurrentSelection::Directory(path));
                     }
                     None => {
-                        if selections.len() > 1 {
-                            selections.pop_back();
+                        if selections.len() == 1 {
+                            continue;
                         }
+
+                        selections.pop_back();
                     }
                 }
             }
