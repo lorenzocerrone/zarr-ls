@@ -66,8 +66,6 @@ impl DirNode {
             let current_selection = path_to_selection(path.clone());
             matching_name.insert(path_name, current_selection);
         }
-
-        matching_name.insert(BACK.to_string(), ActionSelect::Back);
         matching_name
     }
 

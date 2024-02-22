@@ -1,14 +1,8 @@
-use super::{common::{ActionSelect, LoopStep}, filesystem_utils::DirNode};
+use super::{common::{ActionSelect, LoopStep, BACK, EXIT}, filesystem_utils::DirNode};
 use indexmap::IndexMap;
 use inquire::Select;
 
-
-
-
 use std::collections::LinkedList;
-
-
-
 
 static ZARR_GROUP_HEADER: &str = "Zarr Group: ";
 static ZARR_ARRAY_HEADER: &str = "Zarr Array: ";
@@ -75,8 +69,8 @@ impl Walker {
             _ => return Err("This should not happen".to_string()),
         };
 
-        index_options.insert("Back".to_string(), ActionSelect::Back);
-        index_options.insert("Exit".to_string(), ActionSelect::Exit);
+        index_options.insert(BACK.to_string(), ActionSelect::Back);
+        index_options.insert(EXIT.to_string(), ActionSelect::Exit);
         Ok(index_options)
     }
 
