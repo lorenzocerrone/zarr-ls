@@ -70,4 +70,12 @@ impl DirNode {
         matching_name.insert(BACK.to_string(), ActionSelect::Back);
         matching_name
     }
+
+    pub fn path(&self) -> PathBuf {
+        self.path.clone()
+    }
+
+    pub fn parent(&self) -> Option<PathBuf> {
+        self.path.parent().map(|path| path.to_path_buf())
+    }
 }

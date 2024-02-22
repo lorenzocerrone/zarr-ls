@@ -1,4 +1,4 @@
-use super::common::{ActionSelect, LoopStep};
+use super::{common::{ActionSelect, LoopStep}, filesystem_utils::DirNode};
 use indexmap::IndexMap;
 use inquire::Select;
 use zarrs::array::ArrayMetadata;
@@ -38,10 +38,27 @@ impl Walker {
         self.visited_nodes.back().unwrap()
     }
 
-    fn walk_back(&mut self) -> &ActionSelect {
-        self.visited_nodes.pop_back().unwrap();
-        self.visited_nodes.back().unwrap()
+    fn walk_back(&mut self) {
+        if self.visited_nodes.is_empty() {
+            return;
+        }
+
+        let current = self.current_selection();
+        match self.current_selection() {
+            ActionSelect::Dir(dir_node) => {
+                let parent = dir_node.parent().unwrap();
+                let next = ActionSelect::Dir(DirNode::new(&parent));
+                self.visited_nodes.pop_back();
+                self.visited_nodes.push_back(next);
+            }
+            ActionSelect::Zarr(_) => {
+                self.visited_nodes.pop_back();
+            }
+            _ => return
+            
+        }
     }
+        
 
     fn walk_forward(&mut self, next: ActionSelect) {
         self.visited_nodes.push_back(next);
@@ -50,8 +67,12 @@ impl Walker {
     fn get_options(&self) -> Result<IndexMap<String, ActionSelect>, String> {
         let current_selection = self.current_selection().clone();
         let mut index_options: IndexMap<String, ActionSelect> = match current_selection {
-            ActionSelect::Dir(path) => todo!(),
-            ActionSelect::Zarr(node) => todo!(),
+            ActionSelect::Dir(path) => {
+                path.get_options()
+            },
+            ActionSelect::Zarr(node) => {
+                node.get_options()
+            }
             _ => return Err("This should not happen".to_string()),
         };
 
@@ -73,17 +94,17 @@ impl Walker {
         let next_selection = self.build_menu_and_select();
         match next_selection {
             ActionSelect::Dir(path) => {
-                let next = !todo!();
+                let next = ActionSelect::Dir(path);
                 self.walk_forward(next);
                 LoopStep::Continue
             }
             ActionSelect::Zarr(node) => {
-                let next = !todo!();
+                let next = ActionSelect::Zarr(node);
                 self.walk_forward(next);
                 LoopStep::Continue
             }
             ActionSelect::Back => {
-                let next = self.walk_back();
+                self.walk_back();
                 LoopStep::Continue
             }
             ActionSelect::Error(message) => LoopStep::Error(message),
