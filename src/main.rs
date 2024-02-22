@@ -62,22 +62,22 @@ fn main() {
         None => env::current_dir().unwrap(),
     };
 
-    let mut walker = Walker::Dir(FileWalker::new(&path));
+    let walker = Walker::Dir(FileWalker::new(&path));
 
     loop {
         let current_selection = build_menu(&walker);
-        match current_selection {
+        let walker = match current_selection {
             SelectionType::Dir(path) => {
-                walker = Walker::Dir(FileWalker::new(&path));
+                Walker::Dir(FileWalker::new(&path))
             },
             SelectionType::Zarr(node) => {
-                let walker = match walker {
+                match walker {
                     Walker::Dir(_) => Walker::Zarr(ZarrWalker::new(common::ZarrIdentifier::ZarrNode(node))),
-                    Walker::Zarr(zarr_walker) => {
-                        let next_walker = zarr_walker.next(node);
+                    Walker::Zarr(ref zarr_walker) => {
+                        let next_walker = zarr_walker.clone().next(node);
                         Walker::Zarr(next_walker)
                     },    
-                };
+                }
             },
             SelectionType::ExitWithError(error) => {
                 println!("{}", error);
@@ -87,6 +87,6 @@ fn main() {
                 break;
             },
 
-        }
+        };
     }
 }
