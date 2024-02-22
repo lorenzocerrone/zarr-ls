@@ -1,18 +1,13 @@
 use indexmap::IndexMap;
-use inquire::Select;
+use super::common::{ZarrIdentifier, zarrfile_to_node, SelectionType};
 use zarrs::array::ArrayMetadata;
 
 use zarrs::group::GroupMetadata;
 
 use std::collections::LinkedList;
-use std::fs;
 use std::path::PathBuf;
 
 use zarrs::node::{Node, NodeMetadata};
-use std::env;
-use clap::Parser;
-
-use zarrs::storage::store::FilesystemStore;
 
 static ZARR_GROUP_HEADER: &str = "Zarr Group: ";
 static ZARR_ARRAY_HEADER: &str = "Zarr Array: ";
@@ -20,27 +15,7 @@ static ZARR_EXTENSION: &str = "zarr";
 static EXIT: &str = "Exit!";
 static BACK: &str = "..";
 
-enum ZarrIdentifier {
-    ZarrPath(PathBuf),
-    ZarrURL(String),
-}
 
-fn node_from_zarrfile_path(path: PathBuf) -> Node {
-    let store = FilesystemStore::new(path).unwrap();
-    Node::new(&store, "/").unwrap()
-}
-
-fn node_from_zarrfile_url(url: String) -> Node {
-    panic!("URL not implemented yet")
-}
-
-
-fn zarrfile_to_node(zarr_identifier: ZarrIdentifier) -> Node {
-    match zarr_identifier {
-        ZarrIdentifier::ZarrPath(path) => zarr_node_from_path(path),
-        ZarrIdentifier::ZarrURL(url) => zarr_node_from_url(url),
-    }
-}
 
 fn format_array_infos(node: &Node, verbose: bool) -> String {
     let name = node.path();
@@ -102,39 +77,73 @@ fn format_group_infos(node: &Node) -> String {
     infos
 }
 
-struct ZarrWalker {
+fn format_zarr_option_name(node: Node) -> String {
+    let infos = match node.metadata() {
+        NodeMetadata::Array(_) => format_array_infos(&node, true),
+        NodeMetadata::Group(_) => format_group_infos(&node),
+    };
+    infos
+}
+
+#[derive(Debug, Clone)]
+pub struct ZarrWalker {
     current_node: Node,
     visited_nodes: LinkedList<Node>,
+    parent_directory: Option<PathBuf>,
 }
 
 
 impl ZarrWalker {
     pub fn new(zarr_identifier: ZarrIdentifier) -> Self {
-        let node = zarrfile_to_node(zarr_identifier);
+        let node = zarrfile_to_node(&zarr_identifier);
+
+        let parent_directory = match zarr_identifier {
+            ZarrIdentifier::ZarrPath(path) => path.parent().map(|path| path.to_path_buf()),
+            _ => None,
+            };
+        
         ZarrWalker {
             current_node: node,
             visited_nodes: LinkedList::new(),
+            parent_directory,
         }
     }
 
-    pub fn get_options(&self) -> IndexMap<String, Node> {
+    pub fn next(self, next_node: Node) -> ZarrWalker {
+        let mut visited_nodes = self.visited_nodes;
+        visited_nodes.push_back(self.current_node.clone());
+
+        ZarrWalker {
+            current_node: next_node,
+            visited_nodes,
+            parent_directory: self.parent_directory,
+        }
+    }
+
+    pub fn get_options(&self) -> IndexMap<String, SelectionType> {
         let mut options = IndexMap::new();
-        for (name, node) in self.current_node.children() {
-            let child_name = format_zarr_option_name(child.clone());
-            let current_selection = CurrentSelection::ZarrFile(child.clone());
-            options.insert(name.to_string(), node);
+        
+        for node in self.current_node.children() {
+            let child_name = format_zarr_option_name(node.clone());
+            
+            let selection = SelectionType::Zarr(node.clone());
+            options.insert(child_name, selection);
         }
         options
     }
 
-    pub fn previous(&mut self) {
+    pub fn parent(&mut self) -> SelectionType {
+        if self.visited_nodes.is_empty() {
+            return match &self.parent_directory {
+                Some(parent_directory) => SelectionType::Dir(parent_directory.clone()),
+                None => SelectionType::ExitWithError("Root Directory Reached".to_string()),
+            }
+        }
+
         let previous_node = self.visited_nodes.pop_back().unwrap();
         self.current_node = previous_node;
+        SelectionType::Zarr(self.current_node.clone())
     }
-
-    pub fn set_next(&mut self, node: Node) {
-        self.visited_nodes.push_back(self.current_node);
-        self.current_node = node;
-    }
+    
 }
 
