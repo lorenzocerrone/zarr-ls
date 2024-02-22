@@ -1,4 +1,4 @@
-use super::common::{ActionSelect, BACK};
+use super::common::{ActionSelect};
 use super::zarr_utils::{ZarrIdentifier, ZarrNode};
 use std::path::PathBuf;
 
