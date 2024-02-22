@@ -1,5 +1,6 @@
 use indexmap::IndexMap;
 use super::common::{ZarrIdentifier, zarrfile_to_node, SelectionType};
+use super::filesystem_walker::FileWalker;
 use zarrs::array::ArrayMetadata;
 
 use zarrs::group::GroupMetadata;
@@ -11,9 +12,17 @@ use zarrs::node::{Node, NodeMetadata};
 
 static ZARR_GROUP_HEADER: &str = "Zarr Group: ";
 static ZARR_ARRAY_HEADER: &str = "Zarr Array: ";
-static ZARR_EXTENSION: &str = "zarr";
-static EXIT: &str = "Exit!";
-static BACK: &str = "..";
+static ZARR_EXTENSION: &str = "zarr";pub fn get_options(&self) -> IndexMap<String, SelectionType> {
+    let mut options = IndexMap::new();
+    
+    for node in self.current_node.children() {
+        let child_name = format_zarr_option_name(node.clone());
+        
+        let selection = SelectionType::Zarr(node.clone());
+        options.insert(child_name, selection);
+    }
+    options
+}
 
 
 
@@ -44,7 +53,9 @@ fn format_array_infos(node: &Node, verbose: bool) -> String {
         format!("{}{}", name, infos)
     }
 }
-
+e,
+                self.parent_directory.clone()
+            }
 fn format_group_infos(node: &Node) -> String {
     let name = node.path();
     let child_headers = format!("\n  {:-<1$}>", "", ZARR_GROUP_HEADER.len() - 1);
@@ -92,6 +103,12 @@ pub struct ZarrWalker {
     parent_directory: Option<PathBuf>,
 }
 
+enum MaybeZarrWalker {
+    Zarr(ZarrWalker),
+    File(FileWalker),
+    EXIT
+}
+
 
 impl ZarrWalker {
     pub fn new(zarr_identifier: ZarrIdentifier) -> Self {
@@ -132,18 +149,20 @@ impl ZarrWalker {
         options
     }
 
-    pub fn parent(&mut self) -> SelectionType {
+    pub fn parent(& self) -> MaybeZarrWalker{
         if self.visited_nodes.is_empty() {
             return match &self.parent_directory {
-                Some(parent_directory) => SelectionType::Dir(parent_directory.clone()),
-                None => SelectionType::ExitWithError("Root Directory Reached".to_string()),
+                Some(parent_directory) => MaybeZarrWalker::File(FileWalker::new(parent_directory)),
+                None => MaybeZarrWalker::EXIT,
             }
         }
 
         let previous_node = self.visited_nodes.pop_back().unwrap();
-        self.current_node = previous_node;
-        SelectionType::Zarr(self.current_node.clone())
+        MaybeZarrWalker::Zarr(ZarrWalker {
+            current_node: previous_node,
+            visited_nodes: self.visited_nodes.clone(),
+            parent_directory: self.parent_directory.clone(),
+        })
     }
-    
 }
 

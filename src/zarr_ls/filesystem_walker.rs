@@ -1,27 +1,12 @@
-
-use super::common::{SelectionType, zarrfile_to_node, ZarrIdentifier};
-
+use super::common::{SelectionType, zarrfile_to_node, ZarrIdentifier, EXIT, BACK};
+use super::common::{ActionSelect, LoopStep};
 use indexmap::IndexMap;
-
-
-
-
-
 
 use std::fs;
 use std::path::PathBuf;
 
-
-
-
-
-
-
-static ZARR_GROUP_HEADER: &str = "Zarr Group: ";
-static ZARR_ARRAY_HEADER: &str = "Zarr Array: ";
 static ZARR_EXTENSION: &str = "zarr";
-static EXIT: &str = "Exit!";
-static BACK: &str = "..";
+
 
 fn read_dir(path: PathBuf) -> Vec<PathBuf> {
     assert!(path.exists());
@@ -62,18 +47,6 @@ fn path_to_selection(path: PathBuf) -> SelectionType {
     
 }
 
-fn find_files_options(path: PathBuf) -> IndexMap<String, SelectionType> {
-    let paths: Vec<PathBuf> = read_dir(path.clone());
-    let mut matching_name: IndexMap<String, SelectionType> = IndexMap::new();
-
-    for path in paths {
-        let path_name = path.file_name().unwrap().to_str().unwrap().to_string();
-        let current_selection = path_to_selection(path.clone());
-        matching_name.insert(path_name, current_selection);
-    }
-    matching_name
-}
-
 #[derive(Debug, Clone)]
 pub struct FileWalker {
     current_path: PathBuf,
@@ -94,16 +67,14 @@ impl FileWalker {
             let current_selection = path_to_selection(path.clone());
             matching_name.insert(path_name, current_selection);
         }
-        
+
+        matching_name.insert(BACK.to_string(), SelectionType::Back);
+        matching_name.insert(EXIT.to_string(), SelectionType::Exit);
         matching_name
     }
 
-    pub fn previous(&mut self) -> SelectionType {
+    fn parent(&mut self) -> FileWalker {
         let previous_path = self.current_path.parent().unwrap().to_path_buf();
-        SelectionType::Dir(previous_path)
-    }
-
-    pub fn set_next(&mut self, path: PathBuf) {
-        self.current_path = path;
+        FileWalker::new(&previous_path)
     }
 }

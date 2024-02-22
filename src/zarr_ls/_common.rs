@@ -1,20 +1,12 @@
-
-
-
-
-
-
 use std::path::PathBuf;
 
-use zarrs::node::{Node};
+use zarrs::node::Node;
 
 use zarrs::storage::store::FilesystemStore;
 
-static ZARR_GROUP_HEADER: &str = "Zarr Group: ";
-static ZARR_ARRAY_HEADER: &str = "Zarr Array: ";
 static ZARR_EXTENSION: &str = "zarr";
-static EXIT: &str = "Exit!";
-static BACK: &str = "..";
+pub static EXIT: &str = "Exit!";
+pub static BACK: &str = "..";
 
 
 pub enum ZarrIdentifier {
@@ -45,6 +37,7 @@ pub fn zarrfile_to_node(zarr_identifier: &ZarrIdentifier) -> Node {
 pub enum SelectionType {
     Dir(PathBuf),
     Zarr(Node),
+    Back,
     ExitWithError(String),
     Exit,
 }
