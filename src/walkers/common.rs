@@ -1,12 +1,12 @@
-use indexmap::IndexMap;
-use zarrs::array::ArrayMetadata;
 
-use zarrs::group::GroupMetadata;
 
-use std::collections::LinkedList;
+
+
+
+
 use std::path::PathBuf;
 
-use zarrs::node::{Node, NodeMetadata};
+use zarrs::node::{Node};
 
 use zarrs::storage::store::FilesystemStore;
 
@@ -28,7 +28,7 @@ fn node_from_zarrfile_path(path: &PathBuf) -> Node {
     Node::new(&store, "/").unwrap()
 }
 
-fn node_from_zarrfile_url(url: &String) -> Node {
+fn node_from_zarrfile_url(_url: &String) -> Node {
     panic!("URL not implemented yet")
 }
 

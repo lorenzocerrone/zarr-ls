@@ -2,20 +2,20 @@
 use super::common::{SelectionType, zarrfile_to_node, ZarrIdentifier};
 
 use indexmap::IndexMap;
-use inquire::Select;
-use zarrs::array::ArrayMetadata;
 
-use zarrs::group::GroupMetadata;
 
-use std::collections::LinkedList;
+
+
+
+
 use std::fs;
 use std::path::PathBuf;
 
-use zarrs::node::{Node, NodeMetadata};
-use std::env;
-use clap::Parser;
 
-use zarrs::storage::store::FilesystemStore;
+
+
+
+
 
 static ZARR_GROUP_HEADER: &str = "Zarr Group: ";
 static ZARR_ARRAY_HEADER: &str = "Zarr Array: ";
@@ -100,7 +100,7 @@ impl FileWalker {
 
     pub fn previous(&mut self) -> SelectionType {
         let previous_path = self.current_path.parent().unwrap().to_path_buf();
-        return SelectionType::Dir(previous_path);
+        SelectionType::Dir(previous_path)
     }
 
     pub fn set_next(&mut self, path: PathBuf) {
