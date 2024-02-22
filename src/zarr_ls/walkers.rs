@@ -1,14 +1,14 @@
 use super::{common::{ActionSelect, LoopStep}, filesystem_utils::DirNode};
 use indexmap::IndexMap;
 use inquire::Select;
-use zarrs::array::ArrayMetadata;
 
-use zarrs::group::GroupMetadata;
+
+
 
 use std::collections::LinkedList;
-use std::path::PathBuf;
 
-use zarrs::node::{Node, NodeMetadata};
+
+
 
 static ZARR_GROUP_HEADER: &str = "Zarr Group: ";
 static ZARR_ARRAY_HEADER: &str = "Zarr Array: ";
@@ -30,7 +30,7 @@ impl Walker {
         visited_nodes.push_back(root.clone());
 
         Walker {
-            visited_nodes: visited_nodes,
+            visited_nodes,
         }
     }
 
@@ -43,7 +43,6 @@ impl Walker {
             return;
         }
 
-        let current = self.current_selection();
         match self.current_selection() {
             ActionSelect::Dir(dir_node) => {
                 let parent = dir_node.parent().unwrap();
@@ -54,7 +53,7 @@ impl Walker {
             ActionSelect::Zarr(_) => {
                 self.visited_nodes.pop_back();
             }
-            _ => return
+            _ => ()
             
         }
     }

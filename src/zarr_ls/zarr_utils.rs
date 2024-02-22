@@ -118,7 +118,7 @@ impl ZarrNode {
         };
         ZarrNode {
             node,
-            parent_directory: parent_directory,
+            parent_directory,
         }
     }
 

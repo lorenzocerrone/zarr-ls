@@ -1,5 +1,5 @@
 use super::common::{ActionSelect, BACK};
-use super::zarr_utils::{zarrfile_to_node, ZarrIdentifier, ZarrNode};
+use super::zarr_utils::{ZarrIdentifier, ZarrNode};
 use std::path::PathBuf;
 
 use indexmap::IndexMap;
