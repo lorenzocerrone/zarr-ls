@@ -67,7 +67,6 @@ fn path_to_selection(path: PathBuf) -> CurrentSelection {
 
     if path.is_dir() {
         return CurrentSelection::Directory(path);
-
     }
 
     panic!("Invalid path: {:?}. It should be either a directory or a zarr file", path);
